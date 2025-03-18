@@ -1,11 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-import pandas as pd
 
 def task_1():
-    img_file = 'IMG_INTRO/A3.png'
-    img_imread = plt.imread(img_file)
+    img_imread = plt.imread('IMG_INTRO/A3.png')
 
     print(img_imread.dtype)
     print(img_imread.shape)
@@ -41,7 +39,7 @@ def task_1():
 
     img_gray = 0.2126 * R_color + 0.7152 * G_color + 0.0722 * B_color
 
-    img_cv = cv2.imread(img_file)
+    img_cv = cv2.imread('IMG_INTRO/A3.png')
     plt.imshow(img_cv)
     plt.show()
 
@@ -53,8 +51,7 @@ def task_1():
     plt.imshow(img_cv_bgr)
     plt.show()
 
-def task_2(img, task_3=False):
-    fig = plt.figure(figsize=(10, 10))
+def task_2(img):
     plt.subplot(3,3,1)
     plt.imshow(img)
 
@@ -94,51 +91,15 @@ def task_2(img, task_3=False):
     img_copy[:, :, 0] = 0
     img_copy[:, :, 1] = 0
     plt.imshow(img_copy)
-    plt.tight_layout()
-
-    if not task_3:
-        plt.show()
-
-    return fig
+    plt.show()
 
 def task_3():
-    from docx import Document
-    from docx.shared import Inches
-    from io import BytesIO
-
-    df = pd.DataFrame(data={'Filename': ['IMG_INTRO/B02.jpg'], 'Grayscale': [False],
-                            'Fragments': [[[0,0,800,1200], [0,0,200,200], [200,0,400,200], [400,0,600,200], [600,0,800,200]]]
-                            })
-
-    document = Document()
-    document.add_heading('Analiza fragmentów obrazu', 0)
-
-    for index, row in df.iterrows():
-        document.add_heading('Obraz {}'.format(row['Filename']), 3)
-        img = cv2.imread(row['Filename'])
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        for i, f in enumerate(row['Fragments']):
-            fragment = img[f[0]:f[2], f[1]:f[3]].copy()
-            fig = task_2(fragment, task_3=True)
-
-            memfile = BytesIO()
-            fig.savefig(memfile, format='png')
-            memfile.seek(0)
-
-            document.add_heading(f'Fragment {i + 1}', level=3)
-            document.add_picture(memfile, width=Inches(6))
-
-            memfile.close()
-            plt.close(fig)
-
-        document.save('report.docx')
+    pass
 
 
 
 
-
-img = plt.imread('IMG_INTRO/B02.jpg')
 # task_1()
+img = plt.imread('IMG_INTRO/B01.png')
 # task_2(img)
 task_3()

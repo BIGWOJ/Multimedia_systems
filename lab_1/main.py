@@ -4,6 +4,8 @@ import sounddevice as sd
 import soundfile as sf
 import scipy.fftpack
 
+
+
 def task_1():
     data, fs = sf.read('SOUND_INTRO/sound1.wav', dtype='float32')
     # sd.play(data, fs)
