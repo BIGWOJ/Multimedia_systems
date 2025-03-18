@@ -8,26 +8,25 @@ import scipy.fftpack
 
 def task_1():
     data, fs = sf.read('SOUND_INTRO/sound1.wav', dtype='float32')
-    # sd.play(data, fs)
-    # status = sd.wait()
+    sd.play(data, fs)
+    status = sd.wait()
 
     sound_L = data[:, 0]
     sound_R = data[:, 1]
     sound_mix = (sound_L + sound_R) / 2
 
-    # sf.write('SOUND_INTRO/sound1_L.wav', sound_L, fs)
-    # sf.write('SOUND_INTRO/sound1_R.wav', sound_R, fs)
-    # sf.write('SOUND_INTRO/sound1_mix.wav', sound_mix, fs)
-    #
-    # x = np.arange(0, data.shape[0]) / fs
-    #
-    # plt.subplot(2,1,1)
-    # plt.plot(x, data[:,0])
-    #
-    # plt.subplot(2,1,2)
-    # plt.plot(x, data[:,1])
-    # plt.show()
-    #
+    sf.write('SOUND_INTRO/sound1_L.wav', sound_L, fs)
+    sf.write('SOUND_INTRO/sound1_R.wav', sound_R, fs)
+    sf.write('SOUND_INTRO/sound1_mix.wav', sound_mix, fs)
+
+    x = np.arange(0, data.shape[0]) / fs
+
+    plt.subplot(2,1,1)
+    plt.plot(x, data[:,0])
+
+    plt.subplot(2,1,2)
+    plt.plot(x, data[:,1])
+    plt.show()
 
     data, fs = sf.read('SIN/sin_440Hz.wav', dtype=np.int32)
     plt.figure()
@@ -114,6 +113,6 @@ def task_3():
 
     document.save('report.docx')
 
-# task_1()(
-# task_2()
+task_1()
+task_2()
 task_3()
