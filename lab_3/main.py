@@ -16,14 +16,7 @@ def scale_nearest_neighbour(img, scale):
         for j in range(new_width):
             new_img[i, j, :] = img[Y[i], X[j], :]
 
-    plt.subplot(1,2,1)
-    plt.title("Oryginalny obraz")
-    plt.imshow(img)
-
-    plt.subplot(1,2,2)
-    plt.title(f"Obraz po skalowaniu o {scale}")
-    plt.imshow(new_img)
-    plt.show()
+    return new_img
 
 def scale_bilinear(img, scale):
     height, width, RGB = img.shape
@@ -46,11 +39,43 @@ def scale_bilinear(img, scale):
             y1 = np.floor(yy).astype(int)
             y2 = np.ceil(yy).astype(int)
 
+            x_fraction = xx - x1
+            y_fraction = yy - y1
 
+            if x1 == x2:
+                x2 = x1 + 1 if x1 + 1 < width else x1
+            if y1 == y2:
+                y2 = y1 + 1 if y1 + 1 < height else y1
 
+            for color in range(RGB):
+                R1 = (1 - x_fraction) * img[y1, x1, color] + x_fraction * img[y1, x2, color]
+                R2 = (1 - x_fraction) * img[y2, x1, color] + x_fraction * img[y2, x2, color]
+                new_img[i, j, color] = (1 - y_fraction) * R1 + y_fraction * R2
 
+    return new_img
+
+def test_scale_img(img, scale, method="nearest"):
+    if method == "nearest":
+        scaled_img = scale_nearest_neighbour(img, scale)
+    elif method == "bilinear":
+        scaled_img = scale_bilinear(img, scale)
+
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.title("Oryginalny obraz")
+    plt.imshow(img)
+
+    plt.subplot(1, 2, 2)
+    plt.title(f"Obraz po skalowaniu o {scale} metodą {method}")
+    plt.imshow(scaled_img)
+    plt.tight_layout()
+    plt.show()
 
 img = cv2.imread('IMG_SMALL/SMALL_0001.tif')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 scale = 2
-scale_nearest_neighbour(img, scale)
+test_scale_img(img, scale, method="nearest")
+test_scale_img(img, scale, method="bilinear")
+
+
+
