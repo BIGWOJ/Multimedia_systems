@@ -46,25 +46,34 @@ def scale_bilinear(img, scale):
 
     return new_img
 
-def reduce(img, scale, method):
+def reduce(img, scale, method="mean"):
     height, width, RGB = img.shape
     new_height, new_width = int(height / scale), int(width / scale)
     new_img = np.zeros((new_height, new_width, img.shape[2])).astype(img.dtype)
-    scale = int(scale)
 
     for i in range(new_height):
         for j in range(new_width):
+            start_row = int(i * scale)
+            end_row = int((i + 1) * scale)
+            start_col = int(j * scale)
+            end_col = int((j + 1) * scale)
+            block = img[start_row:end_row, start_col:end_col]
+
             if method == "mean":
-                new_img[i, j] = np.mean(img[i * scale:(i + 1) * scale, j * scale:(j + 1) * scale], axis=(0, 1))
+                new_img[i, j] = np.mean(block, axis=(0, 1))
             elif method == "median":
-                new_img[i, j] = np.median(img[i * scale:(i + 1) * scale, j * scale:(j + 1) * scale], axis=(0, 1))
+                new_img[i, j] = np.median(block, axis=(0, 1))
             elif method == "weighted_average":
-                weights = np.random.rand(scale)
+                block_height, block_width = block.shape[:2]
+                weights = np.random.rand(block_height, block_width)
                 weights /= np.sum(weights)
-                weights = np.tile(weights, (scale, 1))
                 for color in range(RGB):
-                    new_img[i, j, color] = np.average(img[i * scale:(i + 1) * scale, j * scale:(j + 1) * scale, color],
-                                                      weights=weights, axis=(0, 1))
+                    new_img[i, j, color] = np.average(
+                        block[:, :, color],
+                        weights=weights,
+                        axis=(0, 1)
+                    )
+
     return new_img
 
 def get_tests_fragments(img, reduce=False):
@@ -88,18 +97,14 @@ def test_scale_img(img, scale, method, generate_report=False):
         plt.show()
     plt.close()
 
-    scaled_fragments = []
-    original_fragments = []
+    figs = []
 
     for test_original_fragment in test_original_fragments:
+        fig = plt.figure(figsize=(10, 7))
         if method == "nearest":
             scaled_fragment = scale_nearest_neighbour(test_original_fragment, scale)
         elif method == "bilinear":
             scaled_fragment = scale_bilinear(test_original_fragment, scale)
-
-        if generate_report:
-            scaled_fragments.append(scaled_fragment)
-            original_fragments.append(test_original_fragment)
 
         original_edges = cv2.Canny(test_original_fragment, 100, 200)
         scaled_edges = cv2.Canny(scaled_fragment, 100, 200)
@@ -122,54 +127,19 @@ def test_scale_img(img, scale, method, generate_report=False):
 
         plt.tight_layout()
 
+        if generate_report:
+            figs.append(fig)
+
         if not generate_report:
             plt.show()
 
-        plt.close()
+        # plt.close()
 
     if generate_report:
-        return original_fragments, scaled_fragments, original_edges, scaled_edges
-
-def reduce2(img, scale, method="mean"):
-    height, width, RGB = img.shape
-    new_height, new_width = int(height / scale), int(width / scale)
-    new_img = np.zeros((new_height, new_width, img.shape[2])).astype(img.dtype)
-
-    # Precompute block boundaries for efficiency
-    row_indices = np.arange(0, height, scale)
-    col_indices = np.arange(0, width, scale)
-
-    for i in range(new_height):
-        for j in range(new_width):
-            # Determine the block boundaries for the current output pixel
-            start_row = int(i * scale)
-            end_row = int((i + 1) * scale)
-            start_col = int(j * scale)
-            end_col = int((j + 1) * scale)
-
-            # Extract the block from the input image
-            block = img[start_row:end_row, start_col:end_col]
-
-            if method == "mean":
-                new_img[i, j] = np.mean(block, axis=(0, 1))
-            elif method == "median":
-                new_img[i, j] = np.median(block, axis=(0, 1))
-            elif method == "weighted_average":
-                # Compute weights dynamically based on the block size
-                block_height, block_width = block.shape[:2]
-                weights = np.random.rand(block_height, block_width)
-                weights /= np.sum(weights)
-                for color in range(RGB):
-                    new_img[i, j, color] = np.average(
-                        block[:, :, color],
-                        weights=weights,
-                        axis=(0, 1)
-                    )
-
-    return new_img
+        return figs
 
 def test_reduce_img(img, scale, method, generate_report=False):
-    test_original_fragments = get_tests_fragments(img, reduce=True)
+    test_original_fragments = get_tests_fragments(img)
 
     plt.title("Oryginalny obraz")
     plt.imshow(img)
@@ -179,15 +149,11 @@ def test_reduce_img(img, scale, method, generate_report=False):
         plt.show()
     plt.close()
 
-    reduced_fragments = []
-    original_fragments = []
+    figs = []
 
     for test_original_fragment in test_original_fragments:
-        reduced_fragment = reduce2(test_original_fragment, scale, method)
-
-        if generate_report:
-            reduced_fragments.append(reduced_fragment)
-            original_fragments.append(test_original_fragment)
+        fig = plt.figure(figsize=(10, 7))
+        reduced_fragment = reduce(test_original_fragment, scale, method)
 
         original_edges = cv2.Canny(test_original_fragment, 100, 200)
         reduced_edges = cv2.Canny(reduced_fragment, 100, 200)
@@ -210,12 +176,15 @@ def test_reduce_img(img, scale, method, generate_report=False):
 
         plt.tight_layout()
 
+        if generate_report:
+            figs.append(fig)
+
         if not generate_report:
             plt.show()
-        plt.close()
+        # plt.close()
 
     if generate_report:
-        return original_fragments, reduced_fragments, original_edges, reduced_edges
+        return figs
 
 def tests():
     img_big = cv2.imread('IMG_BIG/BIG_0004.png')
@@ -235,7 +204,6 @@ def generate_report():
     from docx import Document
     from docx.shared import Inches
     from io import BytesIO
-    from os import remove
     from docx2pdf import convert
 
     imgs_small = ['IMG_SMALL/SMALL_0001.tif', 'IMG_SMALL/SMALL_0002.png', 'IMG_SMALL/SMALL_0003.png', 'IMG_SMALL/SMALL_0004.jpg']
@@ -276,59 +244,26 @@ def generate_report():
             fig, axs = plt.subplots(2, 1, figsize=(10, 7))
 
             for i, method in enumerate(methods):
+                document.add_heading('Metoda {}'.format(method), 3)
                 if testing_operation == 'scale':
-                    document.add_heading('Metoda {}'.format(method), 4)
-                    original_fragments, modified_fragments, original_edges, modified_edges = test_scale_img(img, scale, method, generate_report=True)
-                    plt.close(fig)
+                    generated_figs = test_scale_img(img, scale, method, generate_report=True)
 
                 if testing_operation == 'reduce':
-                    document.add_heading('Metoda {}'.format(method), 3)
-                    original_fragments, modified_fragments, original_edges, modified_edges = test_reduce_img(img, scale, method, generate_report=True)
-                    plt.close(fig)
+                    generated_figs = test_reduce_img(img, scale, method, generate_report=True)
 
-                for original_fragment, modified_fragment, original_fragment_edges, modified_fragment_edges in zip(
-                        original_fragments, modified_fragments, original_edges, modified_edges):
+                for generated_fig in generated_figs:
+                    generated_fig_memfile = BytesIO()
+                    generated_fig.savefig(generated_fig_memfile, format='png')
+                    generated_fig_memfile.seek(0)
 
-                    original_memfile = BytesIO()
-                    plt.imsave(original_memfile, original_fragment)
-                    original_memfile.seek(0)
+                    document.add_picture(generated_fig_memfile, width=Inches(7))
 
-                    modified_memfile = BytesIO()
-                    plt.imsave(modified_memfile, modified_fragment)
-                    modified_memfile.seek(0)
+                    generated_fig_memfile.close()
+                    plt.close(generated_fig)
 
-                    original_fragment_edges_memfile = BytesIO()
-                    plt.imsave('report.png')
-                    original_fragment_edges_memfile.seek(0)
-
-                    modified_fragment_edges_memfile = BytesIO()
-                    plt.imsave('report.png')
-                    modified_fragment_edges_memfile.seek(0)
-
-                    document.add_heading('Fragment oryginalnego obrazu', level=4)
-                    # document.add_picture(original_memfile, width=Inches(3))
-
-                    # document.add_heading('Fragment oryginalnego obrazu', level=4)
-                    # document.add_picture(original_memfile, width=Inches(3))
-                    #
-                    # document.add_heading('Fragment zmodyfikowanego obrazu', level=4)
-                    # document.add_picture(modified_memfile, width=Inches(3))
-                    #
-                    # document.add_heading('Krawędzie oryginalnego obrazu"', level=4)
-                    # document.add_picture(original_fragment_edges_memfile, width=Inches(3))
-                    #
-                    # document.add_heading('Krawędzie zmodyfikowanego obrazu"', level=4)
-                    # document.add_picture(modified_fragment_edges_memfile, width=Inches(3))
-
-                    original_memfile.close()
-                    modified_memfile.close()
-                    original_fragment_edges_memfile.close()
-                    modified_fragment_edges_memfile.close()
-
-        docx_path = 'report1.docx'
+        docx_path = 'report.docx'
         document.save(docx_path)
-        convert(docx_path, 'report1.pdf')
-        # remove(docx_path)
+        # convert(docx_path, 'report1.pdf')
 
 # tests()
 generate_report()
