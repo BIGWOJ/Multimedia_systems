@@ -29,6 +29,7 @@ def generate_docx_template():
     from docx import Document
     from docx.shared import Inches
     from io import BytesIO
+    from docx2pdf import convert
 
     document = Document()
     document.add_heading('Change title', 0)
@@ -59,4 +60,6 @@ def generate_docx_template():
             document.add_paragraph('Example value = {}'.format(np.random.rand(1)))
             ############################################################
 
-    document.save('report.docx')
+    docx_path = 'report.docx'
+    document.save(docx_path)
+    convert(docx_path, 'report.pdf')
