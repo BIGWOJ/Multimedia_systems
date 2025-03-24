@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
-from PIL import Image
 
 def scale_nearest_neighbour(img, scale):
     height, width, RGB = img.shape
@@ -133,7 +132,7 @@ def test_scale_img(img, scale, method, generate_report=False):
         if not generate_report:
             plt.show()
 
-        # plt.close()
+        plt.close()
 
     if generate_report:
         return figs
@@ -181,7 +180,8 @@ def test_reduce_img(img, scale, method, generate_report=False):
 
         if not generate_report:
             plt.show()
-        # plt.close()
+
+        plt.close()
 
     if generate_report:
         return figs
@@ -194,19 +194,20 @@ def tests():
     img_small = cv2.cvtColor(img_small, cv2.COLOR_BGR2RGB)
     scale = 1.32
 
-    # test_scale_img(img_small, scale, method="nearest")
+    test_scale_img(img_small, scale, method="nearest")
     test_scale_img(img_small, scale, method="bilinear")
-    # test_reduce_img(img_big, scale, method="mean")
-    # test_reduce_img(img_big, scale, method="median")
-    # test_reduce_img(img_big, scale, method="weighted_average")
+    test_reduce_img(img_big, scale, method="mean")
+    test_reduce_img(img_big, scale, method="median")
+    test_reduce_img(img_big, scale, method="weighted_average")
 
 def generate_report():
     from docx import Document
     from docx.shared import Inches
     from io import BytesIO
     from docx2pdf import convert
+    from os import remove
 
-    imgs_small = ['IMG_SMALL/SMALL_0001.tif', 'IMG_SMALL/SMALL_0002.png', 'IMG_SMALL/SMALL_0003.png', 'IMG_SMALL/SMALL_0004.jpg']
+    imgs_small = ['IMG_SMALL/SMALL_0001.tif', 'IMG_SMALL/SMALL_0002.png', 'IMG_SMALL/SMALL_0003.png', 'IMG_SMALL/SMALL_0010.jpg']
     imgs_big = ['IMG_BIG/BIG_0001.jpg', 'IMG_BIG/BIG_0004.png']
     files = imgs_small + imgs_big
     scales_reduces = [1.5, 10, 20] # 50%, 10%, 5%
@@ -230,19 +231,17 @@ def generate_report():
 
         if file.__contains__('SMALL'):
             scales = scales_upscale
-            done = "Powiększenie"
+            operation = "Powiększenie"
             testing_operation= 'scale'
             methods = ['nearest', 'bilinear']
         else:
             scales = scales_reduces
-            done = "Pomniejszenie"
+            operation = "Pomniejszenie"
             testing_operation = 'reduce'
             methods = ['mean', 'median', 'weighted_average']
 
         for scale in scales:
-            document.add_heading('{} o x{}'.format(done, scale), 2)
-            fig, axs = plt.subplots(2, 1, figsize=(10, 7))
-
+            document.add_heading('{} o x{}'.format(operation, scale), 2)
             for i, method in enumerate(methods):
                 document.add_heading('Metoda {}'.format(method), 3)
                 if testing_operation == 'scale':
@@ -261,9 +260,10 @@ def generate_report():
                     generated_fig_memfile.close()
                     plt.close(generated_fig)
 
-        docx_path = 'report.docx'
-        document.save(docx_path)
-        # convert(docx_path, 'report1.pdf')
+    docx_path = 'report.docx'
+    document.save(docx_path)
+    convert(docx_path, 'report.pdf')
+    remove(docx_path)
 
 # tests()
 generate_report()
