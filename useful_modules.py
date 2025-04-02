@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_figures(signal, fs, time_margin=[0, 0.02]):
+def generate_figures(signal, fs, time_margin=[0, 0.02], generate_report=False):
     import scipy.fftpack
 
+    fig = plt.figure(figsize=(10, 7))
     time = np.arange(0, len(signal)) / fs
 
-    plt.figure()
     plt.subplot(2, 1, 1)
     plt.plot(time, signal)
     plt.xlabel('[s]')
@@ -14,15 +14,19 @@ def generate_figures(signal, fs, time_margin=[0, 0.02]):
     plt.xlim(time_margin)
     plt.title('Signal')
 
-    yf = scipy.fftpack.fft(signal)
-    xf = np.linspace(0, fs / 2, len(yf) // 2)
+    # yf = scipy.fftpack.fft(signal)
+    # xf = np.linspace(0, fs / 2, len(yf) // 2)
+    #
+    # plt.subplot(2, 1, 2)
+    # plt.plot(xf, 20 * np.log10(np.abs(yf[:len(yf) // 2])))
+    # plt.xlabel('[Hz]')
+    # plt.ylabel('[dB]')
+    # plt.title('1/2 Spectrum')
+    # plt.tight_layout()
 
-    plt.subplot(2, 1, 2)
-    plt.plot(xf, 20 * np.log10(np.abs(yf[:len(yf) // 2])))
-    plt.xlabel('[Hz]')
-    plt.ylabel('[dB]')
-    plt.title('1/2 Spectrum')
-    plt.tight_layout()
+    if generate_report:
+        return fig
+
     plt.show()
 
 def generate_docx_template():
