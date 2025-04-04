@@ -14,15 +14,15 @@ def generate_figures(signal, fs, time_margin=[0, 0.02], generate_report=False):
     plt.xlim(time_margin)
     plt.title('Signal')
 
-    # yf = scipy.fftpack.fft(signal)
-    # xf = np.linspace(0, fs / 2, len(yf) // 2)
-    #
-    # plt.subplot(2, 1, 2)
-    # plt.plot(xf, 20 * np.log10(np.abs(yf[:len(yf) // 2])))
-    # plt.xlabel('[Hz]')
-    # plt.ylabel('[dB]')
-    # plt.title('1/2 Spectrum')
-    # plt.tight_layout()
+    yf = scipy.fftpack.fft(signal)
+    xf = np.linspace(0, fs / 2, len(yf) // 2)
+
+    plt.subplot(2, 1, 2)
+    plt.plot(xf, 20 * np.log10(np.abs(yf[:len(yf) // 2]) + 1e-10))
+    plt.xlabel('[Hz]')
+    plt.ylabel('[dB]')
+    plt.title('1/2 Spectrum')
+    plt.tight_layout()
 
     if generate_report:
         return fig
