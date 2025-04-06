@@ -4,14 +4,25 @@ import soundfile as sf
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-def quantize(data, bit, m=0, n=1):
-    d = 2 ** bit - 1
 
-    if not np.issubdtype(data.dtype, np.floating):
+def quantize(data, bit, m=None, n=None):
+    dtype = data.dtype
+
+    if not np.issubdtype(dtype, np.floating):
         DataF = data.astype(float)
     else:
-        DataF = data
+        DataF = data.copy()
 
+    if m is None or n is None:
+        if np.issubdtype(dtype, np.integer):
+            info = np.iinfo(dtype)
+            m = info.min
+            n = info.max
+        else:
+            m = DataF.min()
+            n = DataF.max()
+
+    d = 2 ** bit - 1
     DataF = (DataF - m) / (n - m)
     DataF = np.round(DataF * d) / d
     DataF = DataF * (n - m) + m
