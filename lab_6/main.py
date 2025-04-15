@@ -4,7 +4,7 @@ import cv2
 
 def run_length_encode(img):
     flat = np.array(img).flatten()
-    encoded = []
+    encoded = [img.shape[0], img.shape[1]]
     count = 1
 
     for i in range(1, len(flat)):
@@ -17,10 +17,11 @@ def run_length_encode(img):
     encoded.append(count)
     encoded.append(flat[-1])
 
-    return img.shape, np.array(encoded)
+    return np.array(encoded)
 
 def run_length_decode(encoded_data):
-    og_shape, data = encoded_data
+    og_shape = encoded_data[:2]
+    data = encoded_data[2:]
     decoded = []
 
     for i in range(0, len(data), 2):
@@ -35,30 +36,25 @@ def count_repeats(data, start):
     count = 1
 
     for i in range(start + 1, len(data)):
-        if data[i] == value:
-            count += 1
-            if count == 128:
-                break
-        else:
+        if data[i] != value or count == 128:
             break
+        count += 1
 
     return count
 
 def count_uniques(data, start):
     count = 1
-
     for i in range(start + 1, len(data)):
-        if data[i] == data[i - 1]:
+        if data[i] == data[i - 1] or count == 128:
             break
         count += 1
-        if count == 128:
-            break
 
     return count
 
 def byte_run_encode(img):
     flat = img.flatten()
-    encoded = []
+    encoded = [img.shape[0], img.shape[1]]
+
     i = 0
     while i < len(flat):
         if i + 1 < len(flat) and flat[i] == flat[i + 1]:
@@ -70,6 +66,7 @@ def byte_run_encode(img):
             encoded.append(-(repeat_count - 1))
             encoded.append(flat[i])
             i += repeat_count
+
         else:
             unique_count = count_uniques(flat, i)
             while unique_count > 128:
@@ -81,21 +78,25 @@ def byte_run_encode(img):
             encoded.extend(flat[i:i+unique_count])
             i += unique_count
 
-    return img.shape, np.array(encoded)
+    # return img.shape, np.array(encoded)
+    return np.array(encoded)
 
 def byte_run_decode(encoded_data):
-    og_shape, encoded = encoded_data
+    og_shape = encoded_data[:2]
+    encoded = encoded_data[2:]
     decoded = []
+
     i = 0
     while i < len(encoded):
-        header = encoded[i]
-        if header < 0:
-            count = -header + 1
+        starting = encoded[i]
+        if starting < 0:
+            count = -starting + 1
             value = encoded[i + 1]
             decoded.extend([value] * count)
             i += 2
+
         else:
-            count = header + 1
+            count = starting + 1
             decoded.extend(encoded[i + 1:i + 1 + count])
             i += 1 + count
 
@@ -143,15 +144,15 @@ def test():
 
         encoded = run_length_encode(img)
         decoded = run_length_decode(encoded)
-        print("\tPoprany proces kodowania -> dekodowania:", np.array_equal(img, decoded))
-        CR, PR = compression_ratio(img, encoded[1])
-        print(f"\tRLE stopień kompresji: {CR:.2f}, czyli {PR:.2f}%")
+        print("\tRLE: poprawność kompresji/dekompresji:", np.array_equal(img, decoded))
+        CR, PR = compression_ratio(img, encoded[2:])
+        print(f"\tRLE: stopień kompresji: {CR:.2f}, czyli {PR:.2f}%")
 
         encoded = byte_run_encode(img)
         decoded = byte_run_decode(encoded)
-        print("\tPoprany proces kodowania -> dekodowania ByteRun :", np.array_equal(img, decoded))
-        CR, PR = compression_ratio(img, encoded)
-        print(f"\tRLE stopień kompresji: {CR:.2f}, czyli {PR:.2f}%\n")
+        print("\tByteRun: poprawność kompresji/dekompresji:", np.array_equal(img, decoded))
+        CR, PR = compression_ratio(img, encoded[2:])
+        print(f"\tByteRun: stopień kompresji: {CR:.2f}, czyli {PR:.2f}%\n")
 
 def generate_report():
     from docx import Document
@@ -162,6 +163,15 @@ def generate_report():
 
     document = Document()
     document.add_heading('Kompresja bezstratna\nWojciech Latos', 0)
+
+    text = ('Zarządzanie pamięcią podczas kompresji jest bardzo ważne. Podczas testowania na przykładowych zdjęciach w każdym przypadku - oprócz ostatniego zdjęcia, przy metodzie RLE - udało się '
+            'zmniejszyć rozmiar zajmowanej pamięci przez zdjęcie. Niepowodzenie wynikało z faktu, iż naturalne zdjęcie posiada bardzo duże spektrum barw, przez co kolory chociaż dla oka się nie zmieniają, '
+            'to z komputerowego punktu widzenia już tak. Czarno-białe obrazy są idealne do kompresji tymi metodami, ponieważ są tylko dwie wartości - biały oraz czarny.\n'
+            'Jednocześnie wedle samej nazwy - kompresja jest bezstratna - odkodowane obrazy są identyczne co oryginały.\n'
+            'Sprawdzanie poprawności kompresji/dekompresji polega na porównaniu oryginalnego zdjęcia z tym po dekompresji '
+            'przy pomocy kodu np.array_equal(oryginał, zakodowane) - zwraca True gdy tablice mają identyczne wartości oraz wymiary, False w przeciwnym wypadku.\n'
+            'Oryginalny rozmiar obrazu znajduje się pod dwoma pierwszymi indeksami zakodowanej tablicy.')
+    document.add_heading(text, level=1)
 
     imgs_path = ['IMAGES/blueprint.png', 'IMAGES/document.png', 'IMAGES/mountains_panorama.png']
 
@@ -175,6 +185,7 @@ def generate_report():
         plt.savefig(memfile)
         memfile.seek(0)
 
+        document.add_page_break()
         document.add_picture(memfile, width=Inches(6))
         plt.close()
 
@@ -182,20 +193,19 @@ def generate_report():
 
         rle_encoded = run_length_encode(img)
         rle_decoded = run_length_decode(rle_encoded)
-        document.add_paragraph('Poprawność kompresji/dekompresji: {}'.format(np.array_equal(img, rle_decoded)))
-        CR, PR = compression_ratio(img, rle_encoded[1])
-
+        document.add_paragraph('RLE: poprawność kompresji/dekompresji: {}'.format(np.array_equal(img, rle_decoded)))
+        CR, PR = compression_ratio(img, rle_encoded[2:])
         document.add_paragraph('RLE: stopień kompresji: {:.2f}, czyli {:.2f}%'.format(CR, PR))
 
         br_encoded = byte_run_encode(img)
         br_decoded = byte_run_decode(br_encoded)
-        document.add_paragraph('Poprawność kompresji/dekompresji: {}'.format(np.array_equal(img, br_decoded)))
-        CR, PR = compression_ratio(img, br_encoded[1])
+        document.add_paragraph('ByteRun: poprawność kompresji/dekompresji: {}'.format(np.array_equal(img, br_decoded)))
+        CR, PR = compression_ratio(img, br_encoded[2:])
         document.add_paragraph('ByteRun: stopień kompresji: {:.2f}, czyli {:.2f}%'.format(CR, PR))
 
     docx_path = 'report.docx'
     document.save(docx_path)
-    # convert(docx_path, 'report.pdf')
+    convert(docx_path, 'report.pdf')
 
-test()
-# generate_report()
+# test()
+generate_report()
