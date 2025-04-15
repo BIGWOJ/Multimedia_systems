@@ -1,76 +1,116 @@
 import numpy as np
 import cv2
 
+
 def run_length_encode(img):
-    img_flatten = img.flatten()
-    output = np.zeros(np.prod(img_flatten.shape) * 2, dtype=object)
-    index = 0
+    flat = np.array(img).flatten()
+    encoded = []
     count = 1
-    for i in range(1, len(img_flatten)):
-        if img_flatten[i] == img_flatten[i - 1]:
+
+    for i in range(1, len(flat)):
+        if flat[i] == flat[i - 1]:
             count += 1
         else:
-            # new_pair = (count, img_flatten[i - 1])
-            output[index] = (count, img_flatten[i - 1])
-            index += 1
+            encoded.append(count)
+            encoded.append(flat[i - 1])
             count = 1
+    encoded.append(count)
+    encoded.append(flat[-1])
 
-    return (img.shape, output[:index])
+    return img.shape, np.array(encoded)
 
 def run_length_decode(encoded_data):
-    shape, data = encoded_data
-    flat = []
-    for count, value in data:
-        flat.extend([value] * count)
-    return np.array(flat, dtype=np.uint8).reshape(shape)
+    og_shape, data = encoded_data
+    decoded = []
 
-def byte_run_encode(img: np.ndarray):
+    for i in range(0, len(data), 2):
+        count = data[i]
+        value = data[i + 1]
+        decoded.extend([value] * count)
+
+    return np.array(decoded).reshape(og_shape)
+
+def count_repeats(data, start):
+    value = data[start]
+    count = 1
+
+    for i in range(start + 1, len(data)):
+        if data[i] == value:
+            count += 1
+            if count == 128:
+                break
+        else:
+            break
+
+    return count
+
+def count_uniques(data, start):
+    count = 1
+
+    for i in range(start + 1, len(data)):
+        if data[i] == data[i - 1]:
+            break
+        count += 1
+        if count == 128:
+            break
+
+    return count
+
+def byte_run_encode(img):
     flat = img.flatten()
     encoded = []
     i = 0
     while i < len(flat):
-        run_len = 1
-        while i + run_len < len(flat) and flat[i] == flat[i + run_len] and run_len < 127:
-            run_len += 1
-        if run_len > 1:
-            encoded.append((-(run_len - 1), flat[i]))
-            i += run_len
+        if i + 1 < len(flat) and flat[i] == flat[i + 1]:
+            repeat_count = count_repeats(flat, i)
+            while repeat_count > 128:
+                encoded.append(-127)
+                encoded.append(flat[i])
+                repeat_count -= 128
+            encoded.append(-(repeat_count - 1))
+            encoded.append(flat[i])
+            i += repeat_count
         else:
-            literals = [flat[i]]
-            i += 1
-            while i < len(flat) and (len(literals) < 127):
-                if i + 1 < len(flat) and flat[i] == flat[i + 1]:
-                    break
-                literals.append(flat[i])
-                i += 1
-            encoded.append((len(literals) - 1, literals))
+            unique_count = count_uniques(flat, i)
+            while unique_count > 128:
+                encoded.append(127)
+                encoded.extend(flat[i:i+128])
+                i += 128
+                unique_count -= 128
+            encoded.append(unique_count - 1)
+            encoded.extend(flat[i:i+unique_count])
+            i += unique_count
 
-    return (img.shape, encoded)
+    return img.shape, np.array(encoded)
 
 def byte_run_decode(encoded_data):
-    shape, data = encoded_data
-    flat = []
-    for length, value in data:
-        if length < 0:
-            flat.extend([value] * (1 - length))
+    og_shape, encoded = encoded_data
+    decoded = []
+    i = 0
+    while i < len(encoded):
+        header = encoded[i]
+        if header < 0:
+            count = -header + 1
+            value = encoded[i + 1]
+            decoded.extend([value] * count)
+            i += 2
         else:
-            flat.extend(value)
-    return np.array(flat, dtype=np.uint8).reshape(shape)
+            count = header + 1
+            decoded.extend(encoded[i + 1:i + 1 + count])
+            i += 1 + count
+
+    return np.array(decoded).reshape(og_shape)
 
 def compression_ratio(original, compressed):
-    original_size = original.size
-    compressed_size = 0
-    for item in compressed:
-        if isinstance(item[1], list):
-            compressed_size += 1 + len(item[1])
-        else:
-            compressed_size += 2
-    return original_size / compressed_size, (compressed_size / original_size) * 100
+    before_compression = get_size(original.flatten())
+    after_compression = get_size(compressed)
+    CR = before_compression / after_compression
+    PR = after_compression / before_compression * 100
 
-images = ['IMAGES/blueprint.png', 'IMAGES/document.png', 'IMAGES/mountains_panorama.png']
-import sys
+    return CR, PR
 
 def get_size(obj, seen=None):
+    import sys
     """Recursively finds size of objects"""
     size = sys.getsizeof(obj)
     if seen is None:
@@ -92,24 +132,70 @@ def get_size(obj, seen=None):
         size += sum([get_size(i, seen) for i in obj])
     return size
 
-for img_path in images:
-    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-    img = np.array(img, dtype=np.uint8)
+def test():
+    images = ['IMAGES/blueprint.png', 'IMAGES/document.png', 'IMAGES/mountains_panorama.png']
 
-    print(f"\nTesting image: {img_path}")
+    for img_path in images:
+        print(img_path)
 
-    rle_encoded = run_length_encode(img)
-    # print(rle_encoded[0])
-    print(rle_encoded[1])
-    print(get_size(img))
-    exit()
-    rle_decoded = run_length_decode(rle_encoded)
-    print("RLE correct:", np.array_equal(img, rle_decoded))
-    ratio_rle, perc_rle = compression_ratio(img, rle_encoded[1])
-    print(f"RLE compression ratio: {ratio_rle:.2f}, size = {perc_rle:.2f}%")
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(int)
 
-    # br_encoded = byte_run_encode(img)
-    # br_decoded = byte_run_decode(br_encoded)
-    # print("ByteRun correct:", np.array_equal(img, br_decoded))
-    # ratio_br, perc_br = compression_ratio(img, br_encoded[1])
-    # print(f"ByteRun compression ratio: {ratio_br:.2f}, size = {perc_br:.2f}%")
+        encoded = run_length_encode(img)
+        decoded = run_length_decode(encoded)
+        print("\tPoprany proces kodowania -> dekodowania:", np.array_equal(img, decoded))
+        CR, PR = compression_ratio(img, encoded[1])
+        print(f"\tRLE stopień kompresji: {CR:.2f}, czyli {PR:.2f}%")
+
+        encoded = byte_run_encode(img)
+        decoded = byte_run_decode(encoded)
+        print("\tPoprany proces kodowania -> dekodowania ByteRun :", np.array_equal(img, decoded))
+        CR, PR = compression_ratio(img, encoded)
+        print(f"\tRLE stopień kompresji: {CR:.2f}, czyli {PR:.2f}%\n")
+
+def generate_report():
+    from docx import Document
+    from docx.shared import Inches
+    from io import BytesIO
+    from docx2pdf import convert
+    import matplotlib.pyplot as plt
+
+    document = Document()
+    document.add_heading('Kompresja bezstratna\nWojciech Latos', 0)
+
+    imgs_path = ['IMAGES/blueprint.png', 'IMAGES/document.png', 'IMAGES/mountains_panorama.png']
+
+    for img_path in imgs_path:
+        print(img_path)
+        img_imread = cv2.imread(img_path)
+        img = cv2.cvtColor(img_imread, cv2.COLOR_RGB2GRAY).astype(int)
+
+        plt.imshow(cv2.cvtColor(img_imread, cv2.COLOR_BGR2RGB))
+        memfile = BytesIO()
+        plt.savefig(memfile)
+        memfile.seek(0)
+
+        document.add_picture(memfile, width=Inches(6))
+        plt.close()
+
+        memfile.close()
+
+        rle_encoded = run_length_encode(img)
+        rle_decoded = run_length_decode(rle_encoded)
+        document.add_paragraph('Poprawność kompresji/dekompresji: {}'.format(np.array_equal(img, rle_decoded)))
+        CR, PR = compression_ratio(img, rle_encoded[1])
+
+        document.add_paragraph('RLE: stopień kompresji: {:.2f}, czyli {:.2f}%'.format(CR, PR))
+
+        br_encoded = byte_run_encode(img)
+        br_decoded = byte_run_decode(br_encoded)
+        document.add_paragraph('Poprawność kompresji/dekompresji: {}'.format(np.array_equal(img, br_decoded)))
+        CR, PR = compression_ratio(img, br_encoded[1])
+        document.add_paragraph('ByteRun: stopień kompresji: {:.2f}, czyli {:.2f}%'.format(CR, PR))
+
+    docx_path = 'report.docx'
+    document.save(docx_path)
+    # convert(docx_path, 'report.pdf')
+
+test()
+# generate_report()
