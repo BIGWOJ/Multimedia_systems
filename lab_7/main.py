@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-
 
 def A_law_encode(data):
     A = 87.6
@@ -60,27 +58,22 @@ def DPCM_encode_prediction(x, bit, n):
         if i > 0:
             e = np.mean(reconstructed_signal[max(0, i - n):i])
         else:
-            e = 0  # No past samples available for the first sample
+            e = 0
 
     return encoded
 
 def DPCM_decode_prediction(encoded, n):
-    decoded = np.zeros(encoded.shape)  # Decoded signal
-    reconstructed_signal = np.zeros(encoded.shape)  # Reconstructed signal
+    decoded = np.zeros(encoded.shape)
+    reconstructed_signal = np.zeros(encoded.shape)
 
-    e = 0  # Initial prediction value
+    e = 0
     for i in range(encoded.shape[0]):
-        # Reconstruct the current sample
         decoded[i] = e + encoded[i]
-
-        # Update the reconstructed signal
         reconstructed_signal[i] = decoded[i]
-
-        # Predict the next sample using the mean of the last `n` samples
         if i > 0:
-            e = np.mean(reconstructed_signal[max(0, i - n):i])  # Mean of past samples
+            e = np.mean(reconstructed_signal[max(0, i - n):i])
         else:
-            e = 0  # No past samples available for the first sample
+            e = 0
 
     return decoded
 
@@ -90,114 +83,6 @@ def quantization(data, bit):
     quantized = np.round((data + 1) / step) * step - 1
 
     return quantized
-
-def a():
-    x = np.linspace(-1, 1 , 1000)
-
-    x_q = quantization(x, 8)
-
-    y_1 = A_law_encode(x.copy())
-    y_1_q = quantization(y_1, 8)
-
-    y_2 = mu_law_encode(x.copy())
-    y_2_q = quantization(y_2, 8)
-
-    y_de_a = A_law_decode(y_1.copy())
-    y_de_a_q = A_law_decode(y_1_q.copy())
-
-    y_de_mu = mu_law_decode(y_2.copy())
-    y_de_mu_q = mu_law_decode(y_2_q.copy())
-
-    fig, axs = plt.subplots(1, 2, figsize=(14, 10))
-
-
-    axs[0].plot(x, y_1_q, label='Sygnal po kompresji a-law po kwantyzacji do 8-bitow')
-    axs[0].plot(x, y_1, label='Sygnal po kompresji a-law bez kwantyzacji')
-    axs[0].plot(x, y_2_q, label='Sygnal po kompresji mu-law po kwantyzacji do 8-bitow')
-    axs[0].plot(x, y_2, label='Sygnal po kompresji mu-law bez kwantyzacji')
-    axs[0].set_title("Krzywa kompresji")
-    axs[0].set_xlabel("Oryginalny sygnał")
-    axs[0].set_ylabel("Po kompresji")
-    axs[0].legend()
-    axs[0].grid(True)
-
-    axs[1].plot(x, x, label='Sygnał oryginalny')
-    axs[1].plot(x, y_de_a_q, label='Sygnał po dekompresji a-law (quantization 8-bitów)')
-    axs[1].plot(x, y_de_mu_q, label='Sygnał po dekompresji mu-law (quantization 8-bitów)')
-    axs[1].plot(x, x_q, label='Sygnał oryginalny po kwantyzacji')
-
-    axs[1].set_title("Krzywa dekompresji")
-    axs[1].set_xlabel("Oryginalny sygnał")
-    axs[1].set_ylabel("Po dekompresji")
-    axs[1].legend()
-    axs[1].grid(True)
-
-
-
-    plt.tight_layout()
-    plt.show()
-
-def a_2():
-    x = np.linspace(-0.5, -0.25, 1000)
-    signal = 0.9 * np.sin(np.pi * x * 4)
-    plt.plot(x, signal)
-    plt.show()
-    a_decoded = A_law_decode(quantization(A_law_encode(signal.copy()), 6))
-    plt.plot(x, signal)
-    plt.show()
-    # exit()
-    mu_decoded = mu_law_decode(quantization(mu_law_encode(signal.copy()), 6))
-    dpcm_y = DPCM_encode(signal, 6)
-    dpcm_decoded = DPCM_decode(dpcm_y)
-    dpcm_pred_y = DPCM_encode_prediction(signal, 6, n=3)
-    dpcm_pred_decoded = DPCM_decode_prediction(dpcm_pred_y, n=3)
-
-    fig, axs = plt.subplots(5, 1, figsize=(8, 10), sharex=True)
-    fig.suptitle("Przykład A kwantyzacja do 6 bitów")
-
-    axs[0].plot(x, signal)
-    axs[0].set_title("Oryginalny sygnał")
-
-    axs[1].plot(x, a_decoded)
-    axs[1].set_title("Kompresja A-law")
-
-    axs[2].plot(x, mu_decoded)
-    axs[2].set_title("Kompresja mu-law")
-
-    axs[3].plot(x, dpcm_decoded)
-    axs[3].set_title("Kompresja DPCM bez predykcji")
-
-    axs[4].plot(x, dpcm_pred_decoded)
-    axs[4].set_title("Kompresja DPCM z predykcją")
-
-    plt.tight_layout()
-    plt.show()
-
-def b():
-    x = np.linspace(-0.5, -0.25, 1000)
-    signal = 0.9 * np.sin(np.pi * x * 4)
-
-    a_decoded = A_law_decode(quantization(A_law_encode(signal.copy()), 6))
-    mu_decoded = mu_law_decode(quantization(mu_law_encode(signal.copy()), 6))
-    dpcm_y = DPCM_encode(signal, 6)
-    dpcm_decoded = DPCM_decode(dpcm_y)
-    dpcm_pred_y = DPCM_encode_prediction(signal.copy(), 6, n=3)
-    dpcm_pred_decoded = DPCM_decode_prediction(dpcm_pred_y, n=3)
-
-    plt.figure(figsize=(12, 6))
-    plt.plot(x, signal, label='Sygnał oryginalny')
-    plt.plot(x, a_decoded, label='Sygnał po dekompresji z a-law')
-    plt.plot(x, mu_decoded, label='Sygnał po dekompresji z mu-law')
-    plt.plot(x, dpcm_decoded, label='Sygnał po dekompresji z DPCM bez predykcji')
-    plt.plot(x, dpcm_pred_decoded, label='Sygnał po dekompresji z DPCM z predykcją')
-
-    plt.title("Porównanie metod dekompresji – Przykład B")
-    plt.xlabel("Czas / próbki")
-    plt.ylabel("Amplituda")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
 
 def generate_report():
     from docx import Document
@@ -308,18 +193,39 @@ def generate_report():
         memfile.close()
         plt.close(fig)
 
+    document.add_heading("Opis metod", level=1)
+    document.add_paragraph('A-law i mu-law to nieliniowe metody kompresji amplitudy sygnału audio, które zmieniają jego zakres dynamiczny przed kwantyzacją. '
+                           'Dzięki temu uzyskuje się mniejszą ilość danych przy zachowaniu dobrej jakości dźwięku. '
+                           'Ciche dźwięki są wzmocniane, a głośne – tłumione. '
+                           'Kompresji podlega bezpośrednio wartość każdej próbki audio, przekształcana zgodnie z odpowiednim wzorem matematycznym. '
+                           'DPCM natomiast nie koduje wartości bezwzględnych próbek, ale różnice między rzeczywistą wartością próbki a jej prognozą. '
+                           'W moim przypadku prognoza została wykonana jako średnia trzech ostatnich próbek. Pozwala to znacznie ograniczyć ilość danych niezbędnych do zapisania sygnału, szczególnie wtedy, gdy zmiany między kolejnymi próbkami są niewielkie i przewidywalne.'
+                           )
 
+    document.add_heading("Jakość dźwięku po kompresji do 8 bitów", level=1)
+    document.add_paragraph('Jakość dźwięku po kompresji do 8 bitów jest zbliżona do oryginalnego. Są słyszalne szumy, aczkolwiek są one niewielkie, niewarte odnotowania.')
+
+    document.add_page_break()
+    document.add_heading("Jakość dźwięku dla x bitów", level=1)
+    table = document.add_table(rows=4, cols=7)
+    table.style = 'Table Grid'
+    cell_texts = [
+        'Plik / ilość bitów', '7', '6', '5', '4', '3', '2',
+        'sing_low1', 'Jakość bardzo dobra, brak artefaktów, czysty dźwięk, pełne odwzorowanie', 'Bardzo dobra jakość odwzorowania, czysty dźwięk, znikome zniekształcenia', 'Dźwięk słyszalnie zniekształcony, nadal dobre odwzorowanie, słyszalne szumy', 'Bardzo duże zniekształcenia, artefakty, znaczące trudności w rozpoznaniu', 'Bardzo duże zniekształcenia, daleki od oryginału, mocne szumy', 'Dźwięk najgorszy ze wszystkich próbek, ogromne szumy, niezrozumiały',
+        'sing_medium1', 'Jak powyżej', 'Bardzo czysty dźwięk, minimalne zniekształcenia', 'Wyraźnie gorsze odwzorowanie, natomiast nadal do zrozumienia', 'Nadal możliwość zrozumienia, bardzo duże zniekształcenia dźwięku, znaczące szumy', 'Bardzo ciężki do zrozumienia, duże szumy', 'Praktycznie brak możliwości rozpoznania',
+        'sing_high1', 'Jak powyżej', 'Bardzo czysty dźwięk, słyszalne zakłócenia/zniekształcenia wprzy górnych częstotliwościach', 'Najbardziej zniekształcony przy górnych częstotliwościach, najgorsze efekty względem low oraz medium, jednakże nadal do zrozumienia', 'Przy najwyższych częstotliwościach duże trudności ze zrozumieniem, ogólny zarys dźwięku zrozumiany, irytujące dźwięki, szumy', 'Ogromne zniekształcenia, ledwo do zrozumienia', 'Można powiedzieć, że tylko sam szum, brak możliwości interpretacji'
+    ]
+    document.add_paragraph('W skrócie można powiedzieć, że im mniej bitów, tym gorsza jakość dźwięku. Im wyższe częstotliwości dźwięku tym większe zniekształcenia, szybciej pojawiają się zakłócenia względem innych próbek.')
+
+    for row in range(len(table.rows)):
+        for col in range(len(table.columns)):
+            cell = table.cell(row, col)
+            cell.text = cell_texts[row * len(table.columns) + col]
 
     docx_path = 'report.docx'
     document.save(docx_path)
+    convert(docx_path, 'report.pdf')
+    remove(docx_path)
 
 
-
-
-
-
-
-# a()
-# a_2()
-# b()
 generate_report()
