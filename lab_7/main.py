@@ -138,7 +138,7 @@ def a():
     plt.show()
 
 def a_2():
-    x = np.linspace(-1, 1, 1000)
+    x = np.linspace(-0.5, -0.25, 1000)
     signal = 0.9 * np.sin(np.pi * x * 4)
     plt.plot(x, signal)
     plt.show()
@@ -174,7 +174,7 @@ def a_2():
     plt.show()
 
 def b():
-    x = np.linspace(-1, 1, 1000)
+    x = np.linspace(-0.5, -0.25, 1000)
     signal = 0.9 * np.sin(np.pi * x * 4)
 
     a_decoded = A_law_decode(quantization(A_law_encode(signal.copy()), 6))
@@ -215,7 +215,7 @@ def generate_report():
     for x_range in x_ranges:
         encoded = A_law_encode(x_range.copy())
         encoded_quantized = quantization(encoded, 8)
-        plt.figure(figsize=(8, 10))
+        fig = plt.figure(figsize=(8, 10))
         plt.plot(x_range, encoded_quantized, label='Sygnal po kompresji a-law po kwantyzacji do 8-bitów')
         plt.plot(x_range, encoded, label='Sygnal po kompresji a-law bez kwantyzacji')
 
@@ -227,7 +227,91 @@ def generate_report():
         plt.xlabel("Wartość syngału wejściowego")
         plt.ylabel("Wartość sygnału wyjściowego")
         plt.legend(loc='upper left')
-        plt.show()
+
+        fig.tight_layout()
+        memfile = BytesIO()
+        fig.savefig(memfile)
+        memfile.seek(0)
+        document.add_picture(memfile, width=Inches(6))
+        memfile.close()
+        plt.close(fig)
+
+        fig = plt.figure(figsize=(8, 10))
+        plt.plot(x_range, x_range, label='Sygnał oryginalny')
+        plt.plot(x_range, A_law_decode(encoded_quantized.copy()), label='Sygnał po dekompresji z a-law (kwantyzacja 8-bitów)')
+        plt.plot(x_range, mu_law_decode(ecoded_quantized.copy()), label='Sygnał po dekompresji z mu-law (kwantyzacja 8-bitów)')
+        plt.plot(x_range, quantization(x_range.copy(), 8), label='Sygnał oryginalny po kwantyzacji do 8 bitów')
+        plt.title("Krzywa po dekompresji")
+        plt.xlabel("Wartość syngału wejściowego")
+        plt.ylabel("Wartość sygnału wyjściowego")
+        plt.legend(loc='upper left')
+
+        fig.tight_layout()
+        memfile = BytesIO()
+        fig.savefig(memfile)
+        memfile.seek(0)
+        document.add_picture(memfile, width=Inches(6))
+        memfile.close()
+        plt.close(fig)
+
+        document.add_page_break()
+
+    for x_range in [np.linspace(-1, 1, 1000), np.linspace(-0.5, -0.25, 1000)]:
+        signal = 0.9 * np.sin(np.pi * x_range * 4)
+        fig = plt.figure(figsize=(8, 7))
+        plt.suptitle("Przykład A kwantyzacja do 6 bitów")
+
+        plt.subplot(5, 1, 1)
+        plt.title("Sygnal oryginalny")
+        plt.plot(x_range, signal)
+
+        plt.subplot(5, 1, 2)
+        plt.title("Kompresja A-law")
+        plt.plot(x_range, A_law_decode(quantization(A_law_encode(signal.copy()), 6)), label='Kompresja A-law')
+
+        plt.subplot(5, 1, 3)
+        plt.title("Kompresja mu-law")
+        plt.plot(x_range, mu_law_decode(quantization(mu_law_encode(signal.copy()), 6)), label='Kompresja mu-law')
+
+        plt.subplot(5, 1, 4)
+        plt.title("Kompresja DPCM bez predykcji")
+        plt.plot(x_range, DPCM_decode(DPCM_encode(signal, 6)), label='Kompresja DPCM bez predykcji')
+
+        plt.subplot(5, 1, 5)
+        plt.title("Kompresja DPCM z predykcją")
+        plt.plot(x_range, DPCM_decode_prediction(DPCM_encode_prediction(signal.copy(), 6, n=3), n=3), label='Kompresja DPCM z predykcją')
+
+        plt.tight_layout()
+        memfile = BytesIO()
+        fig.savefig(memfile)
+        memfile.seek(0)
+        document.add_picture(memfile, width=Inches(6))
+        memfile.close()
+        plt.close(fig)
+
+        document.add_page_break()
+
+        fig = plt.figure(figsize=(12, 6))
+        plt.title('Przykład B kwantyzacja do 6 bitów')
+        plt.plot(x_range, signal, label='Sygnał oryginalny')
+        plt.plot(x_range, A_law_decode(quantization(A_law_encode(signal.copy()), 6)), label='Sygnał po dekompresji z a-law')
+        plt.plot(x_range, mu_law_decode(quantization(mu_law_encode(signal.copy()), 6)), label='Sygnał po dekompresji z mu-law')
+        plt.plot(x_range, DPCM_decode(DPCM_encode(signal, 6)), label='Sygnał po dekompresji z DPCM bez predykcji')
+        plt.plot(x_range, DPCM_decode_prediction(DPCM_encode_prediction(signal.copy(), 6, n=3), n=3), label='Sygnał po dekompresji z DPCM z predykcją')
+        plt.legend(loc='upper left')
+
+        plt.tight_layout()
+        memfile = BytesIO()
+        fig.savefig(memfile)
+        memfile.seek(0)
+        document.add_picture(memfile, width=Inches(6))
+        memfile.close()
+        plt.close(fig)
+
+
+
+    docx_path = 'report.docx'
+    document.save(docx_path)
 
 
 
@@ -236,6 +320,6 @@ def generate_report():
 
 
 # a()
-a_2()
+# a_2()
 # b()
 generate_report()

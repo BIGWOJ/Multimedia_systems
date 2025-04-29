@@ -141,7 +141,8 @@ def test():
 
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(int)
-
+        print(type(img))
+        exit()
         encoded = run_length_encode(img)
         decoded = run_length_decode(encoded)
         print("\tRLE: poprawność kompresji/dekompresji:", np.array_equal(img, decoded))
@@ -179,7 +180,7 @@ def generate_report():
         print(img_path)
         img_imread = cv2.imread(img_path)
         img = cv2.cvtColor(img_imread, cv2.COLOR_RGB2GRAY).astype(int)
-
+        
         plt.imshow(cv2.cvtColor(img_imread, cv2.COLOR_BGR2RGB))
         memfile = BytesIO()
         plt.savefig(memfile)
@@ -207,5 +208,5 @@ def generate_report():
     document.save(docx_path)
     convert(docx_path, 'report.pdf')
 
-# test()
-generate_report()
+test()
+# generate_report()
