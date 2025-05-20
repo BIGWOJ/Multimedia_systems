@@ -310,7 +310,7 @@ def generate_report():
 
     docx_path = 'report.docx'
     document.save(docx_path)
-    # convert(docx_path, 'report.pdf')
-    # remove(docx_path)
+    convert(docx_path, 'report.pdf')
+    remove(docx_path)
 
 generate_report()
