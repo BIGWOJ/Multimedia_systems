@@ -40,8 +40,8 @@ def put_data(img,data,binary_mask=np.uint8(1)):
     else:
         unpacked_data=data
     dataspace=img.shape[0]*img.shape[1]*np.sum(un_binary_mask)
-    print("dataspace: ",dataspace)
-    print("unpacked_data: ",unpacked_data.size)
+    print(dataspace)
+    print(unpacked_data.size)
     assert (dataspace>=unpacked_data.size) , "too much data"
     # Obliczenie ilości potrzebnych bitów
     total_bits_needed = img.shape[0] * img.shape[1] * np.sum(un_binary_mask)
@@ -69,31 +69,20 @@ def put_data(img,data,binary_mask=np.uint8(1)):
             bv+=1
     return img
 
-def pop_data(img, binary_mask=np.uint8(1), out_shape=None):
-    un_binary_mask = np.unpackbits(binary_mask)
-    num_bits = np.sum(un_binary_mask)
-    data = np.zeros((img.shape[0], img.shape[1], num_bits), dtype=np.uint8)
-
-    bv = 0
-    for i, b in enumerate(un_binary_mask[::-1]):  # Od MSB do LSB
+def pop_data(img,binary_mask=np.uint8(1),out_shape=None):
+    un_binary_mask=np.unpackbits(binary_mask)
+    data=np.zeros((img.shape[0],img.shape[1],np.sum(un_binary_mask))).astype(np.uint8)
+    bv=0
+    for i,b in enumerate(un_binary_mask[::-1]):
         if b:
-            mask = np.full_like(img, 2 ** i)
-            bit_plane = np.bitwise_and(img, mask)
-            # Sprowadzenie bitu na pozycję LSB
-            bit_plane = np.right_shift(bit_plane, i)
-            data[:, :, bv] = bit_plane
-            bv += 1
-
-    if out_shape is not None:
-        flat = data.flatten()
-        total_bytes_needed = np.prod(out_shape)
-        # Packujemy bity do bajtów
-        packed = np.packbits(flat[:total_bytes_needed * 8])
-        # Obcinamy do potrzebnej liczby bajtów
-        packed = packed[:total_bytes_needed]
-        recovered = packed.reshape(out_shape)
-        return recovered
-
+            mask=np.full((img.shape[0],img.shape[1]),2**i)
+            temp=np.bitwise_and(img,mask)
+            data[:,:,bv]=temp[:,:].astype(np.uint8)
+            bv+=1
+    if out_shape!=None:
+        tmp=np.packbits(data.flatten())
+        tmp=tmp[:np.prod(out_shape)]
+        data=tmp.reshape(out_shape)
     return data
 
 def calculate_metrics(original, modified):
@@ -101,46 +90,34 @@ def calculate_metrics(original, modified):
     psnr = 10 * np.log10((255 ** 2) / mse)
     ssim = structural_similarity(original, modified, multichannel=True, channel_axis=2)
 
-    return {'PSNR': psnr, 'SSIM': ssim}
+    return psnr, ssim
 
 def task_1(img):
     blue_channel = img[:, :, 0]
-    with open("text.txt", "r") as f:
-        text = f.read()
+    with open("text.txt", "r") as file:
+        text = file.read()
 
     binary_mask = np.uint8(1)
     text_data = np.frombuffer(text.encode('utf-8'), dtype=np.uint8)
     encoded = put_data(blue_channel, text_data, binary_mask)
     encoded_img = img.copy()
     encoded_img[:, :, 0] = encoded
-    retrieved_bits = pop_data(encoded, binary_mask, out_shape=text_data.shape)
-    retrieved_text = retrieved_bits.tobytes().decode('utf-8', errors='ignore')
+    restored_bits = pop_data(encoded, binary_mask, out_shape=text_data.shape)
+    restored_text = restored_bits.tobytes().decode('utf-8')
 
-    print("Odtworzony tekst:", retrieved_text)
+    print("Restored text:", restored_text)
 
-def task_2(img, img_hidden):
-    def hide_image(carrier_img, data_img):
-        stego_img = np.copy(carrier_img)
-
-        masks = {
-            'R': np.uint8(0b00000011),  # 2 bits
-            'G': np.uint8(0b00000011),  # 2 bits
-            'B': np.uint8(0b00000111),  # 3 bits
-        }
-
-        for channel_idx, (channel_name, mask) in enumerate(masks.items()):
-            channel_data = data_img[:, :, channel_idx]
-            stego_img[:, :, channel_idx] = put_data(carrier_img[:, :, channel_idx], channel_data, mask)
-
-        return stego_img
-
-    def recover_image(stego_img, shape, dtype=np.uint8):
+def task_2_3(carrier_path, img_hidden_path):
+    def recover_image(stego_img, shape, RG_mask, B_mask, dtype=np.uint8):
         recovered = np.zeros(shape, dtype=dtype)
 
         masks = {
-            'R': np.uint8(0b00000011),  # 2 bits
-            'G': np.uint8(0b00000011),  # 2 bits
-            'B': np.uint8(0b00000111),  # 3 bits
+            'R': RG_mask,  # 2 bits
+            'G': RG_mask,  # 2 bits
+            'B': B_mask,  # 3 bits
+            # 'R': np.uint8(0b00000011),  # 2 bits
+            # 'G': np.uint8(0b00000011),  # 2 bits
+            # 'B': np.uint8(0b00000111),  # 3 bits
         }
 
         for channel_idx, (channel_name, mask) in enumerate(masks.items()):
@@ -148,36 +125,106 @@ def task_2(img, img_hidden):
 
         return recovered
 
-    carrier_img = np.array(Image.open('images/img_1.png'))
-    data_img = np.array(Image.open('images/img_2.png'))
+    # img_carrier = cv2.cvtColor(cv2.imread(carrier_path), cv2.COLOR_BGR2RGB)
+    # img_hidden = cv2.cvtColor(cv2.imread(img_hidden_path), cv2.COLOR_BGR2RGB)
+    #
+    # R = img_carrier[:, :, 0].copy()
+    # G = img_carrier[:, :, 1].copy()
+    # B = img_carrier[:, :, 2].copy()
+    # R2 = img_hidden[:, :, 0].copy()
+    # G2 = img_hidden[:, :, 1].copy()
+    # B2 = img_hidden[:, :, 2].copy()
+    #
+    # carrier_with_hidden = np.copy(img_carrier)
+    # carrier_with_hidden[:, :, 0] = put_data(R, R2, binary_mask=np.uint8(0b00000011))
+    # carrier_with_hidden[:, :, 1] = put_data(G, G2, binary_mask=np.uint8(0b00000011))
+    # carrier_with_hidden[:, :, 2] = put_data(B, B2, binary_mask=np.uint8(0b00000111))
+    #
+    # recovered_img = recover_image(carrier_with_hidden, img_hidden.shape, dtype=img_hidden.dtype)
+    #
+    # plt.subplot(3,1,1)
+    # plt.imshow(img_carrier)
+    # plt.title('Carrier image')
+    # plt.axis('off')
+    #
+    # plt.subplot(3,1,2)
+    # plt.imshow(carrier_with_hidden)
+    # plt.title('Image with hidden image')
+    # plt.axis('off')
+    #
+    # plt.subplot(3,1,3)
+    # plt.imshow(recovered_img)
+    # plt.title('Hidden image')
+    # plt.subplots_adjust(hspace=0.5)
+    # plt.axis('off')
+    # plt.show()
 
-    stego_img = hide_image(carrier_img, data_img)
 
-    Image.fromarray(stego_img).save('stego_image.png')
+    # exit()
+    RG_masks = [np.uint8(0b00000011), np.uint8(0b00000011), np.uint8(0b00000111), np.uint8(0b00001111), np.uint8(0b00011111), np.uint8(0b00111111)]
+    B_masks = [np.uint8(0b00000111), np.uint8(0b00001111), np.uint8(0b00011111), np.uint8(0b00111111), np.uint8(0b01111111)]
 
-    recovered_img = recover_image(stego_img, data_img.shape)[:, :, :3]
-    plt.imshow(recovered_img)
-    plt.show()
-    print(recovered_img)
+    for RG_mask in RG_masks:
+        for B_mask in B_masks:
 
-    Image.fromarray(recovered_img).save('recovered_image.png')
+            print(f'Using RG mask: {RG_mask:08b}, B mask: {B_mask:08b}')
+            img_carrier = cv2.cvtColor(cv2.imread(carrier_path), cv2.COLOR_BGR2RGB)
+            img_hidden = cv2.cvtColor(cv2.imread(img_hidden_path), cv2.COLOR_BGR2RGB)
+
+            R = img_carrier[:, :, 0].copy()
+            G = img_carrier[:, :, 1].copy()
+            B = img_carrier[:, :, 2].copy()
+            R2 = img_hidden[:, :, 0].copy()
+            G2 = img_hidden[:, :, 1].copy()
+            B2 = img_hidden[:, :, 2].copy()
+
+            carrier_with_hidden = np.copy(img_carrier)
+            carrier_with_hidden[:, :, 0] = put_data(R, R2, RG_mask)
+            carrier_with_hidden[:, :, 1] = put_data(G, G2, RG_mask)
+            carrier_with_hidden[:, :, 2] = put_data(B, B2, B_mask)
+
+            recovered_img = recover_image(carrier_with_hidden, img_hidden.shape, RG_mask, B_mask, img_hidden.dtype)
+
+            plt.subplot(3, 1, 1)
+            plt.imshow(img_carrier)
+            plt.title('Carrier image')
+            plt.axis('off')
+
+            plt.subplot(3, 1, 2)
+            plt.imshow(carrier_with_hidden)
+            plt.title('Image with hidden image')
+            plt.axis('off')
+
+            plt.subplot(3, 1, 3)
+            plt.imshow(recovered_img)
+            plt.title('Hidden image')
+            plt.subplots_adjust(hspace=0.5)
+            plt.axis('off')
+            # plt.show()
+            plt.savefig(f'images/RG_{RG_mask:08b}_B_{B_mask:08b}.png')
+
 
 def task_4(img):
     mask = cv2.imread('images/binary.png', 0).astype(np.uint8)
     alpha_values = [0.1, 0.25, 0.5]
 
-    for alpha in alpha_values:
+    for img_counter, alpha in enumerate(alpha_values):
         watermarked = water_mark(img, mask, alpha=alpha)
-        psnr = calculate_metrics(img, watermarked)['PSNR']
-        ssim = calculate_metrics(img, watermarked)['SSIM']
+        watermarked = cv2.cvtColor(watermarked, cv2.COLOR_BGR2RGB)
+        psnr, ssim = calculate_metrics(img, watermarked)
 
-        cv2.imwrite(f'watermarked_alpha_{alpha}.png', watermarked)
-        print(f'Alpha {alpha}: PSNR = {psnr:.2f}, SSIM = {ssim:.2f}')
+        plt.subplot(3, 1, img_counter + 1)
+        plt.subplots_adjust(hspace=0.75)
+        plt.imshow(watermarked)
+        plt.title(f'Alpha:{alpha}, PSNR:{psnr:.2f}, SSIM:{ssim:.4f}')
+    plt.show()
 
-img = cv2.imread('images/img_1.png')
-img_hidden = cv2.imread('images/img_2.png')
+img_path = 'images/img_1.png'
+img_hidden_path = 'images/img_2.png'
+img = cv2.imread(img_path)
+img_hidden = cv2.imread(img_hidden_path)
 
-task_1(img)
-# task_2(None, None)
+# task_1(img)
+task_2_3(img_path, img_hidden_path)
 # task_4(img)
 
